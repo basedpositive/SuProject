@@ -2,6 +2,7 @@ package com.example.su.screens
 
 import android.util.Log
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
@@ -21,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import com.example.su.models.Video
 import coil.compose.rememberImagePainter
@@ -52,12 +54,11 @@ fun FirebaseFirestore.snapshotFlow(collectionPath: String): Flow<QuerySnapshot> 
 }
 
 @Composable
-fun HomeScreen() {
+fun HomeScreen(navController: NavController) {
     val videos = remember { mutableStateListOf<Video>() }
     val db = FirebaseFirestore.getInstance()
 
     LaunchedEffect(Unit) {
-        // Используйте snapshotFlow
         launch {
             db.snapshotFlow("videos").collect { snapshot ->
                 videos.clear()
@@ -78,20 +79,22 @@ fun HomeScreen() {
 
     LazyColumn {
         items(videos) { video ->
-            VideoItem(video)
+            VideoItem(video, navController)
         }
     }
 }
 
 @Composable
-fun VideoItem(video: Video) {
-    Row(modifier = Modifier.padding(8.dp)) {
+fun VideoItem(video: Video, navController: NavController) {
+    Row(
+        modifier = Modifier
+            .padding(8.dp)
+            .clickable { navController.navigate("detailed/${video.id}") }
+    ) {
         Image(
             painter = rememberAsyncImagePainter(
                 ImageRequest.Builder(LocalContext.current).data(data = video.previewUrl).apply(block = fun ImageRequest.Builder.() {
                     crossfade(true)
-                    // placeholder(R.drawable.placeholder)
-                    // error(R.drawable.error)
                 }).build()
             ),
             contentDescription = "Превью видео",
