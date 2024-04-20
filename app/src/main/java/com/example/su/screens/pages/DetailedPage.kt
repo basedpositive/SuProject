@@ -36,31 +36,66 @@ import androidx.media3.ui.PlayerView
 import com.google.firebase.firestore.FirebaseFirestore
 import android.content.Context
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FieldValue
 
 @Composable
 fun DetailedPage(videoId: String) {
-    val context = LocalContext.current  // Получаем контекст напрямую из Composable
-    val video = remember { mutableStateOf<Video?>(null) }
+    val context = LocalContext.current
     val db = FirebaseFirestore.getInstance()
+    val video = remember { mutableStateOf<Video?>(null) }
+    val auth = FirebaseAuth.getInstance()
+    val currentUser = auth.currentUser
 
-    LaunchedEffect(videoId) {
+    DisposableEffect(videoId) {
         val docRef = db.collection("videos").document(videoId)
-        docRef.get().addOnSuccessListener { document ->
-            video.value = document.toObject(Video::class.java)?.apply { id = document.id }
-            // Увеличиваем количество просмотров
-            docRef.update("views", FieldValue.increment(1))
+        val listener = docRef.addSnapshotListener { snapshot, e ->
+            if (e != null) {
+                Log.w("DetailedPage", "Listen failed.", e)
+                return@addSnapshotListener
+            }
+
+            if (snapshot != null && snapshot.exists()) {
+                video.value = snapshot.toObject(Video::class.java)?.apply { id = snapshot.id }
+            }
+        }
+
+        onDispose {
+            listener.remove() // Отписываемся от слушателя при уничтожении компонента
         }
     }
 
     video.value?.let { vid ->
+        val isLiked = currentUser?.uid in vid.likedBy
         Column(modifier = Modifier.padding(16.dp)) {
-            VideoPlayer(videoUrl = vid.videoUrl, context = context)  // Используем контекст здесь
             Text(text = vid.videoName, style = MaterialTheme.typography.titleMedium)
-            Text(text = "Просмотры: ${vid.views}", style = MaterialTheme.typography.titleSmall)
+            Text(text = "Просмотры: ${vid.views}")
+            Text(text = "Лайки: ${vid.likes}")
+            Button(onClick = {
+                toggleLike(db, vid, currentUser)
+            }) {
+                Text(if (isLiked) "Убрать лайк" else "Поставить лайк")
+            }
+            VideoPlayer(videoUrl = vid.videoUrl, context = context)
         }
     } ?: Text("Загрузка видео...")
 }
+
+
+fun toggleLike(db: FirebaseFirestore, video: Video, currentUser: FirebaseUser?) {
+    currentUser?.let { user ->
+        val docRef = db.collection("videos").document(video.id)
+        if (user.uid in video.likedBy) {
+            docRef.update("likedBy", FieldValue.arrayRemove(user.uid))
+            docRef.update("likes", FieldValue.increment(-1))
+        } else {
+            docRef.update("likedBy", FieldValue.arrayUnion(user.uid))
+            docRef.update("likes", FieldValue.increment(1))
+        }
+    }
+}
+
 
 @Composable
 fun VideoPlayer(videoUrl: String, context: Context) {

@@ -12,7 +12,9 @@ data class Video(
     var videoUrl: String = "",
     var description: String = "",
     var views: Int = 0,
-    var likesCount: Int = 0,
+    var likes: Int = 0,
     var dateUploaded: Long = System.currentTimeMillis(),
+
+    var likedBy: List<String> = listOf()
 ) : Serializable
 
