@@ -50,6 +50,13 @@ fun DetailedPage(videoId: String) {
 
     DisposableEffect(videoId) {
         val docRef = db.collection("videos").document(videoId)
+
+        docRef.get().addOnSuccessListener { document ->
+            video.value = document.toObject(Video::class.java)?.apply { id = document.id }
+            // Увеличиваем количество просмотров
+            docRef.update("views", FieldValue.increment(1))
+        }
+
         val listener = docRef.addSnapshotListener { snapshot, e ->
             if (e != null) {
                 Log.w("DetailedPage", "Listen failed.", e)
@@ -61,6 +68,7 @@ fun DetailedPage(videoId: String) {
             }
         }
 
+
         onDispose {
             listener.remove() // Отписываемся от слушателя при уничтожении компонента
         }
@@ -69,6 +77,7 @@ fun DetailedPage(videoId: String) {
     video.value?.let { vid ->
         val isLiked = currentUser?.uid in vid.likedBy
         Column(modifier = Modifier.padding(16.dp)) {
+            VideoPlayer(videoUrl = vid.videoUrl, context = context)
             Text(text = vid.videoName, style = MaterialTheme.typography.titleMedium)
             Text(text = "Просмотры: ${vid.views}")
             Text(text = "Лайки: ${vid.likes}")
@@ -77,7 +86,9 @@ fun DetailedPage(videoId: String) {
             }) {
                 Text(if (isLiked) "Убрать лайк" else "Поставить лайк")
             }
-            VideoPlayer(videoUrl = vid.videoUrl, context = context)
+            Button(onClick = { addVideoToPlaylist(db, currentUser, vid) }) {
+                Text("Добавить в плейлист")
+            }
         }
     } ?: Text("Загрузка видео...")
 }
@@ -96,6 +107,21 @@ fun toggleLike(db: FirebaseFirestore, video: Video, currentUser: FirebaseUser?) 
     }
 }
 
+fun addVideoToPlaylist(db: FirebaseFirestore, user: FirebaseUser?, video: Video) {
+    if (user == null) return
+    val playlistRef = db.collection("users").document(user.uid)
+    val videoData = mapOf(
+        "videoId" to video.id,
+        "videoUrl" to video.videoUrl
+    )
+    playlistRef.update("playlist", FieldValue.arrayUnion(videoData))
+        .addOnSuccessListener {
+            Log.d("DetailedPage", "Video added to playlist successfully.")
+        }
+        .addOnFailureListener {
+            Log.e("DetailedPage", "Error adding video to playlist", it)
+        }
+}
 
 @Composable
 fun VideoPlayer(videoUrl: String, context: Context) {
