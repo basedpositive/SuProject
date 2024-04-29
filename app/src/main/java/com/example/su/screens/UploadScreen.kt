@@ -12,7 +12,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -25,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.su.models.Video
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FirebaseFirestore
@@ -44,6 +51,7 @@ fun UploadVideoButton() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UploadScreen(auth: FirebaseAuth, navController: NavController) {
     val context = LocalContext.current
@@ -51,6 +59,7 @@ fun UploadScreen(auth: FirebaseAuth, navController: NavController) {
     var videoUri by remember { mutableStateOf<Uri?>(null) }
     var previewUri by remember { mutableStateOf<Uri?>(null) }
     var videoName by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
 
     // ActivityResultLaunchers
     val startForResult = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -73,9 +82,19 @@ fun UploadScreen(auth: FirebaseAuth, navController: NavController) {
             TextField(
                 value = videoName,
                 onValueChange = { videoName = it },
-                label = { Text("Название видео") }
+                label = { Text("Название") }
             )
+
             Spacer(modifier = Modifier.height(8.dp))
+
+            TextField(
+                value = description,
+                onValueChange = { description = it },
+                label = { Text("Описание") }
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
             Button(onClick = {
                 val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
                     type = "video/*"
@@ -85,10 +104,12 @@ fun UploadScreen(auth: FirebaseAuth, navController: NavController) {
             }) {
                 Text("Выбрать видео")
             }
-            videoUri?.let {
+            /* videoUri?.let {
                 Text("Выбранное видео: ${it.path}")  // Показываем путь к файлу
-            }
+            }*/
+
             Spacer(modifier = Modifier.height(8.dp))
+
             Button(onClick = {
                 val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
                     type = "image/*"
@@ -98,18 +119,20 @@ fun UploadScreen(auth: FirebaseAuth, navController: NavController) {
             }) {
                 Text("Выбрать превью")
             }
-            previewUri?.let {
+            /* previewUri?.let {
                 Text("Выбранное превью: ${it.path}")  // Показываем путь к файлу
-            }
+            } */
+
             Spacer(modifier = Modifier.height(8.dp))
+
             Button(onClick = {
                 if (videoUri != null && previewUri != null) {
-                    uploadVideoAndData(videoUri, videoName, previewUri, user)
+                    uploadVideoAndData(videoUri, videoName, description, previewUri, user)
                 } else {
                     // Отобразить сообщение об ошибке, если видео или превью не выбраны
                 }
             }) {
-                Text("Загрузить видео и данные")
+                Text("Загрузить видео")
             }
         } else {
             Text("Для загрузки видео войдите в систему.")
@@ -121,7 +144,7 @@ fun UploadScreen(auth: FirebaseAuth, navController: NavController) {
     }
 }
 
-fun uploadVideoAndData(videoUri: Uri?, videoName: String, previewUri: Uri?, user: FirebaseUser) {
+fun uploadVideoAndData(videoUri: Uri?, videoName: String, description: String, previewUri: Uri?, user: FirebaseUser) {
     val storageRef = FirebaseStorage.getInstance().reference
     val videoRef = storageRef.child("videos/${videoUri?.lastPathSegment}")
     val previewRef = storageRef.child("previews/${previewUri?.lastPathSegment}")
@@ -152,7 +175,8 @@ fun uploadVideoAndData(videoUri: Uri?, videoName: String, previewUri: Uri?, user
                                 "userId" to user.uid,
                                 "videoUrl" to videoUrl,
                                 "previewUrl" to previewUrl,
-                                "videoName" to videoName
+                                "videoName" to videoName,
+                                "description" to description
                             )
                             FirebaseFirestore.getInstance().collection("videos").add(videoData)
                                 .addOnSuccessListener {

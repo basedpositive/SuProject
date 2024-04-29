@@ -36,17 +36,25 @@ import androidx.media3.ui.PlayerView
 import com.google.firebase.firestore.FirebaseFirestore
 import android.content.Context
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
+import androidx.annotation.OptIn
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.navigation.NavController
+import com.eygraber.compose.placeholder.PlaceholderHighlight
+import com.eygraber.compose.placeholder.material3.placeholder
+import com.eygraber.compose.placeholder.material3.shimmer
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FieldValue
 
 @Composable
-fun DetailedPage(videoId: String) {
+fun DetailedPage(videoId: String, navController: NavController) {
     val context = LocalContext.current
     val db = FirebaseFirestore.getInstance()
     val video = remember { mutableStateOf<Video?>(null) }
     val auth = FirebaseAuth.getInstance()
     val currentUser = auth.currentUser
+    val isLoading = video.value == null
 
     DisposableEffect(videoId) {
         val docRef = db.collection("videos").document(videoId)
@@ -76,7 +84,10 @@ fun DetailedPage(videoId: String) {
 
     video.value?.let { vid ->
         val isLiked = currentUser?.uid in vid.likedBy
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier
+            .padding(16.dp)
+            .placeholder(isLoading, highlight = PlaceholderHighlight.shimmer())
+        ) {
             VideoPlayer(videoUrl = vid.videoUrl, context = context)
             Text(text = vid.videoName, style = MaterialTheme.typography.titleMedium)
             Text(text = "Просмотры: ${vid.views}")
@@ -123,7 +134,7 @@ fun addVideoToPlaylist(db: FirebaseFirestore, user: FirebaseUser?, video: Video)
         }
 }
 
-@Composable
+@OptIn(UnstableApi::class) @Composable
 fun VideoPlayer(videoUrl: String, context: Context) {
     val exoPlayer = remember {
         ExoPlayer.Builder(context).build().apply {
@@ -143,9 +154,12 @@ fun VideoPlayer(videoUrl: String, context: Context) {
             PlayerView(ctx).apply {
                 player = exoPlayer
                 layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+                useController = true
+                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                controllerAutoShow = true
             }
         },
-        modifier = Modifier.fillMaxWidth().height(200.dp)
+        modifier = Modifier.fillMaxWidth().height(238.dp)
     )
 
     // Начать воспроизведение при готовности

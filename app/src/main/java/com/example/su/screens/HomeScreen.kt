@@ -2,9 +2,13 @@ package com.example.su.screens
 
 import android.util.Log
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,17 +25,23 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import androidx.wear.compose.material.placeholder
+import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
 import com.example.su.models.Video
 import coil.compose.rememberImagePainter
 import coil.request.ImageRequest
 import com.example.su.R
+import com.eygraber.compose.placeholder.PlaceholderHighlight
+import com.eygraber.compose.placeholder.material3.placeholder
+import com.eygraber.compose.placeholder.material3.shimmer
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -44,6 +54,7 @@ import com.google.firebase.firestore.QuerySnapshot
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+
 
 
 fun FirebaseFirestore.snapshotFlow(collectionPath: String): Flow<QuerySnapshot> = callbackFlow {
@@ -90,27 +101,41 @@ fun HomeScreen(navController: NavController) {
 
 @Composable
 fun VideoItem(video: Video, navController: NavController) {
-    Row(
+    val painter = rememberAsyncImagePainter(
+        ImageRequest.Builder(LocalContext.current).data(data = video.previewUrl).apply {
+            crossfade(true)
+        }.build()
+    )
+    val isLoading = painter.state is AsyncImagePainter.State.Loading
+
+    Column(
         modifier = Modifier
             .padding(8.dp)
+            .fillMaxWidth()
             .clickable { navController.navigate("detailed/${video.id}") }
     ) {
         Image(
-            painter = rememberAsyncImagePainter(
-                ImageRequest.Builder(LocalContext.current).data(data = video.previewUrl).apply(block = fun ImageRequest.Builder.() {
-                    crossfade(true)
-                }).build()
-            ),
+            painter = painter,
             contentDescription = "Превью видео",
             modifier = Modifier
-                .size(100.dp, 100.dp)
                 .clip(RoundedCornerShape(8.dp))
+                .fillMaxWidth()
+                .height(238.dp)
+                .placeholder(isLoading, highlight = PlaceholderHighlight.shimmer())
         )
         Column(modifier = Modifier
-            .padding(start = 8.dp)
-            .align(Alignment.CenterVertically)) {
-            Text(text = video.videoName, fontWeight = FontWeight.Bold)
-            Text(text = "Загружено: ${video.userName ?: "Неизвестный пользователь"}")
+            .padding(start = 8.dp)) {
+            Text(
+                text = video.videoName,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.placeholder(isLoading, highlight = PlaceholderHighlight.shimmer())
+            )
+            Text(
+                text = video.userName ?: "Гость",
+                modifier = Modifier.placeholder(isLoading, highlight = PlaceholderHighlight.shimmer())
+            )
         }
+        Spacer(modifier = Modifier.height(8.dp))
     }
 }
+

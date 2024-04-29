@@ -80,7 +80,7 @@ fun MainScreen() {
                 composable("registration") { RegistrationScreen(auth) { navController.popBackStack() } }
                 composable("detailed/{videoId}", arguments = listOf(navArgument("videoId") { type = NavType.StringType })) { backStackEntry ->
                     val videoId = backStackEntry.arguments?.getString("videoId") ?: ""
-                    DetailedPage(videoId = videoId)
+                    DetailedPage(videoId = videoId, navController)
                 }
             }
         }
