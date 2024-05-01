@@ -6,18 +6,23 @@ import android.net.Uri
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.material3.Text
@@ -37,20 +42,6 @@ import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 
-@Composable
-fun UploadVideoButton() {
-    val context = LocalContext.current
-    Button(onClick = {
-        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-            type = "video/*"
-        }
-        val pickerIntent = Intent.createChooser(intent, "Выберите видео")
-        context.startActivity(pickerIntent)
-    }) {
-        Text("Выбрать видео")
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UploadScreen(auth: FirebaseAuth, navController: NavController) {
@@ -60,6 +51,10 @@ fun UploadScreen(auth: FirebaseAuth, navController: NavController) {
     var previewUri by remember { mutableStateOf<Uri?>(null) }
     var videoName by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
+
+    val categories = listOf("Без категорий", "Образование", "Музыка", "Спорт", "Технологии", "Хобби")
+    var selectedCategory by remember { mutableStateOf(categories[0]) }  // По умолчанию выбираем первую категорию
+    var expanded by remember { mutableStateOf(false) }
 
     // ActivityResultLaunchers
     val startForResult = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -74,7 +69,9 @@ fun UploadScreen(auth: FirebaseAuth, navController: NavController) {
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -125,9 +122,44 @@ fun UploadScreen(auth: FirebaseAuth, navController: NavController) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded }
+                ) {
+                    TextField(
+                        modifier = Modifier.menuAnchor(),
+                        value = selectedCategory,
+                        onValueChange = {},
+                        label = { Text("Категория") },
+                        readOnly = true,
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) }
+                    )
+
+                    ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        categories.forEachIndexed{ index, category ->
+                            DropdownMenuItem(
+                                text = { Text(text = category) },
+                                onClick = {
+                                    selectedCategory = categories[index]
+                                    expanded = false
+                                },
+                                contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                            )
+                        }
+                    }
+                }
+            }
+
             Button(onClick = {
                 if (videoUri != null && previewUri != null) {
-                    uploadVideoAndData(videoUri, videoName, description, previewUri, user)
+                    uploadVideoAndData(videoUri, videoName, description, selectedCategory, previewUri, user)
                 } else {
                     // Отобразить сообщение об ошибке, если видео или превью не выбраны
                 }
@@ -144,7 +176,7 @@ fun UploadScreen(auth: FirebaseAuth, navController: NavController) {
     }
 }
 
-fun uploadVideoAndData(videoUri: Uri?, videoName: String, description: String, previewUri: Uri?, user: FirebaseUser) {
+fun uploadVideoAndData(videoUri: Uri?, videoName: String, description: String, selectedCategory: String, previewUri: Uri?, user: FirebaseUser) {
     val storageRef = FirebaseStorage.getInstance().reference
     val videoRef = storageRef.child("videos/${videoUri?.lastPathSegment}")
     val previewRef = storageRef.child("previews/${previewUri?.lastPathSegment}")
@@ -152,20 +184,16 @@ fun uploadVideoAndData(videoUri: Uri?, videoName: String, description: String, p
     videoUri?.let {
         videoRef.putFile(it).continueWithTask { task ->
             if (!task.isSuccessful) {
-                task.exception?.let {
-                    throw it
-                }
+                task.exception?.let { throw it }
             }
             videoRef.downloadUrl
         }.addOnCompleteListener { task ->
             if (task.isSuccessful) {
                 val videoUrl = task.result.toString()
                 previewUri?.let {
-                    previewRef.putFile(it).continueWithTask  { previewTask ->
+                    previewRef.putFile(it).continueWithTask { previewTask ->
                         if (!previewTask.isSuccessful) {
-                            previewTask.exception?.let {
-                                throw it
-                            }
+                            previewTask.exception?.let { throw it }
                         }
                         previewRef.downloadUrl
                     }.addOnCompleteListener { previewTask ->
@@ -176,7 +204,8 @@ fun uploadVideoAndData(videoUri: Uri?, videoName: String, description: String, p
                                 "videoUrl" to videoUrl,
                                 "previewUrl" to previewUrl,
                                 "videoName" to videoName,
-                                "description" to description
+                                "description" to description,
+                                "category" to selectedCategory
                             )
                             FirebaseFirestore.getInstance().collection("videos").add(videoData)
                                 .addOnSuccessListener {
