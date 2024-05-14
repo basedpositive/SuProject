@@ -68,12 +68,13 @@ class MainActivity : ComponentActivity() {
 fun MainScreen() {
     val auth = remember { FirebaseAuth.getInstance() }
     val navController = rememberNavController()
+    val db = FirebaseFirestore.getInstance()
     Scaffold(
         bottomBar = { AppBottomNavigation(navController) },
         content = { innerPadding ->
             NavHost(navController, startDestination = "home", modifier = Modifier.padding(innerPadding)) {
                 composable("home") { HomeScreen(navController) }
-                composable("categoryList") { CategoryListScreen() }
+                composable("categoryList") { CategoryListScreen(navController, db) }
                 composable("uploadVideo") { UploadScreen(auth, navController) }
                 composable("profile") { ProfileScreen(navController, auth = auth) }
                 composable("login") { LoginScreen(auth) { navController.popBackStack() } }
