@@ -3,6 +3,8 @@ accompanistPlaceholder = "<version>"
 agp = "8.3.0"
 coil = "2.6.0"
 exoplayer = "2.19.1"
+firebaseMlNaturalLanguageTranslateModel = "20.0.9"
+imageLabeling = "17.0.8"
 kotlin = "1.9.0"
 coreKtx = "1.12.0"
 junit = "4.13.2"
@@ -10,6 +12,7 @@ junitVersion = "1.1.5"
 espressoCore = "3.5.1"
 kotlinxCoroutinesAndroid = "1.7.3"
 kotlinxCoroutinesCore = "1.7.3"
+languageId = "17.0.5"
 lifecycleRuntimeKtx = "2.7.0"
 activityCompose = "1.8.2"
 composeBom = "2023.08.00"
@@ -23,6 +26,8 @@ firebaseStorage = "20.3.0"
 media3Ui = "1.3.1"
 composeMaterial = "1.3.1"
 placeholderMaterial3 = "1.6"
+firebaseMlVision = "24.1.0"
+playServicesMlkitLanguageId = "17.0.0"
 
 [libraries]
 accompanist-placeholder = { module = "com.google.accompanist:accompanist-placeholder", version.ref = "accompanistPlaceholder" }
@@ -35,6 +40,8 @@ androidx-navigation-compose = { module = "androidx.navigation:navigation-compose
 coil = { module = "io.coil-kt:coil", version.ref = "coil" }
 coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
 exoplayer = { module = "com.google.android.exoplayer:exoplayer", version.ref = "exoplayer" }
+firebase-ml-natural-language-translate-model = { module = "com.google.firebase:firebase-ml-natural-language-translate-model", version.ref = "firebaseMlNaturalLanguageTranslateModel" }
+image-labeling = { module = "com.google.mlkit:image-labeling", version.ref = "imageLabeling" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
@@ -56,7 +63,10 @@ kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutine
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutinesCore" }
 androidx-media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "media3Ui" }
 androidx-compose-material = { group = "androidx.wear.compose", name = "compose-material", version.ref = "composeMaterial" }
+language-id = { module = "com.google.mlkit:language-id", version.ref = "languageId" }
 placeholder-material3 = { module = "io.github.fornewid:placeholder-material3", version.ref = "placeholderMaterial3" }
+firebase-ml-vision = { group = "com.google.firebase", name = "firebase-ml-vision", version.ref = "firebaseMlVision" }
+play-services-mlkit-language-id = { module = "com.google.android.gms:play-services-mlkit-language-id", version.ref = "playServicesMlkitLanguageId" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

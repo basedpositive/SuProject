@@ -80,4 +80,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.media3.exoplayer)
     implementation("com.eygraber:compose-placeholder-material3:1.0.7")
+
+    implementation (libs.language.id)
+    implementation (libs.image.labeling)
 }
