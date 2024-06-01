@@ -1,5 +1,6 @@
 package com.example.su
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -9,16 +10,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavController
@@ -28,8 +26,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.wear.compose.material.ContentAlpha
 import com.example.su.models.Screen
-import com.example.su.models.Video
 import com.example.su.screens.CategoryListScreen
 import com.example.su.screens.HomeScreen
 import com.example.su.screens.ProfileScreen
@@ -37,19 +35,23 @@ import com.example.su.screens.UploadScreen
 import com.example.su.screens.auth.LoginScreen
 import com.example.su.screens.auth.RegistrationScreen
 import com.example.su.screens.pages.DetailedPage
+import com.example.su.screens.pages.FullScreenVideoPlayer
+import com.example.su.screens.pages.PlaylistScreen
+import com.example.su.screens.pages.SettingsScreen
 import com.example.su.ui.theme.SuTheme
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val preferences = getSharedPreferences("user_preferences", Context.MODE_PRIVATE)
+        val isDarkTheme = preferences.getBoolean("dark_theme", false)
+
         FirebaseApp.initializeApp(this)
         setContent {
-            SuTheme {
+            SuTheme(darkTheme = isDarkTheme) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -69,6 +71,8 @@ fun MainScreen() {
     val auth = remember { FirebaseAuth.getInstance() }
     val navController = rememberNavController()
     val db = FirebaseFirestore.getInstance()
+    val preferences = LocalContext.current.getSharedPreferences("user_preferences", Context.MODE_PRIVATE)
+
     Scaffold(
         bottomBar = { AppBottomNavigation(navController) },
         content = { innerPadding ->
@@ -83,22 +87,19 @@ fun MainScreen() {
                     val videoId = backStackEntry.arguments?.getString("videoId") ?: ""
                     DetailedPage(videoId = videoId, navController)
                 }
+                composable("settings") { SettingsScreen(preferences) }
+                composable("playlists/{userId}", arguments = listOf(navArgument("userId") { type = NavType.StringType })) { backStackEntry ->
+                    val userId = backStackEntry.arguments?.getString("userId") ?: ""
+                    PlaylistScreen(navController, db, userId)
+                }
+                composable("fullscreen/{videoUrl}", arguments = listOf(navArgument("videoUrl") { type = NavType.StringType })) { backStackEntry ->
+                    val videoUrl = backStackEntry.arguments?.getString("videoUrl") ?: ""
+                    FullScreenVideoPlayer(videoUrl = videoUrl, navController, context = LocalContext.current)
+                }
             }
         }
     )
 }
-
-suspend fun fetchVideoById(videoId: String?): Video? {
-    val db = FirebaseFirestore.getInstance()
-    return videoId?.let {
-        val document = db.collection("videos").document(it).get().await()
-        document.toObject(Video::class.java)?.apply {
-            id = document.id
-            // Здесь вы можете также извлечь имена пользователей, если необходимо
-        }
-    }
-}
-
 
 @Composable
 fun AppBottomNavigation(navController: NavController) {
@@ -108,7 +109,10 @@ fun AppBottomNavigation(navController: NavController) {
         Screen.Upload,
         Screen.Profile
     )
-    NavigationBar {
+    NavigationBar(
+        containerColor = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface
+    ) {
         val currentRoute = currentRoute(navController)
         items.forEach { screen ->
             NavigationBarItem(
@@ -120,7 +124,13 @@ fun AppBottomNavigation(navController: NavController) {
                         popUpTo(navController.graph.startDestinationId)
                         launchSingleTop = true
                     }
-                }
+                },
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = MaterialTheme.colorScheme.onSurface,
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.medium),
+                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.medium)
+                )
             )
         }
     }

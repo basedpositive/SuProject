@@ -10,7 +10,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.su"
-        minSdk = 25
+        minSdk = 30
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
@@ -50,6 +50,7 @@ android {
     }
 }
 
+
 dependencies {
 
     implementation(libs.androidx.core.ktx)
@@ -80,6 +81,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.media3.exoplayer)
     implementation("com.eygraber:compose-placeholder-material3:1.0.7")
+    implementation("com.github.fengdai.compose:media:0.4.0")
 
     implementation (libs.language.id)
     implementation (libs.image.labeling)

@@ -8,8 +8,11 @@ import android.net.Uri
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,6 +24,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -37,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import coil.compose.rememberAsyncImagePainter
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FirebaseFirestore
@@ -62,11 +67,12 @@ fun UploadScreen(auth: FirebaseAuth, navController: NavController) {
     var isLoading by remember { mutableStateOf(false) }
     var showSnackbar by remember { mutableStateOf(false) }
     var showSnackbarError by remember { mutableStateOf(false) }
+    var currentStep by remember { mutableStateOf(1) } // 1 - выбор видео и информации, 2 - подтверждение
 
     val snackbarHostState = remember { SnackbarHostState() }
 
     val categories = listOf("Без категорий", "Образование", "Музыка", "Спорт", "Технологии", "Хобби")
-    var selectedCategory by remember { mutableStateOf(categories[0]) }  // По умолчанию выбираем первую категорию
+    var selectedCategory by remember { mutableStateOf(categories[0]) }
     var expanded by remember { mutableStateOf(false) }
 
     // ActivityResultLaunchers
@@ -103,120 +109,172 @@ fun UploadScreen(auth: FirebaseAuth, navController: NavController) {
             horizontalAlignment = Alignment.Start
         ) {
             if (user != null) {
-                TextField(
-                    value = videoName,
-                    onValueChange = { videoName = it },
-                    label = { Text("Название") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                when (currentStep) {
+                    1 -> {
+                        // Первый этап
+                        TextField(
+                            value = videoName,
+                            onValueChange = { videoName = it },
+                            label = { Text("Название") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                TextField(
-                    value = description,
-                    onValueChange = { description = it },
-                    label = { Text("Описание") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                        TextField(
+                            value = description,
+                            onValueChange = { description = it },
+                            label = { Text("Описание") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                Button(onClick = {
-                    val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-                        type = "video/*"
-                    }
-                    val pickerIntent = Intent.createChooser(intent, "Выберите видео")
-                    startForResult.launch(pickerIntent)
-                }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Выбрать видео")
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Button(onClick = {
-                    val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-                        type = "image/*"
-                    }
-                    val pickerIntent = Intent.createChooser(intent, "Выберите превью")
-                    startForResultPreview.launch(pickerIntent)
-                }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Выбрать превью")
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                ExposedDropdownMenuBox(
-                    expanded = expanded,
-                    onExpandedChange = { expanded = !expanded },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    TextField(
-                        modifier = Modifier
-                            .menuAnchor()
-                            .fillMaxWidth(),
-                        value = selectedCategory,
-                        onValueChange = {},
-                        label = { Text("Категория") },
-                        readOnly = true,
-                        trailingIcon = {
-                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                        Button(onClick = {
+                            val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                                type = "video/*"
+                            }
+                            val pickerIntent = Intent.createChooser(intent, "Выберите видео")
+                            startForResult.launch(pickerIntent)
+                        }, modifier = Modifier.fillMaxWidth()) {
+                            Text("Выбрать видео")
                         }
-                    )
 
-                    ExposedDropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        categories.forEachIndexed { index, category ->
-                            DropdownMenuItem(
-                                text = { Text(text = category) },
-                                onClick = {
-                                    selectedCategory = categories[index]
-                                    expanded = false
-                                },
-                                contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
-                            )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Button(onClick = {
+                            val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                                type = "image/*"
+                            }
+                            val pickerIntent = Intent.createChooser(intent, "Выберите превью")
+                            startForResultPreview.launch(pickerIntent)
+                        }, modifier = Modifier.fillMaxWidth()) {
+                            Text("Выбрать превью")
                         }
-                    }
-                }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                Button(onClick = {
-                    if (videoUri != null && previewUri != null) {
-                        isLoading = true
-
-                        // Фильтрация изображения
-                        filterImage(previewUri!!, context) { isImageSafe ->
-                            if (isImageSafe) {
-                                // Фильтрация текста
-                                filterTextContent(videoName + " " + description) { isTextSafe ->
-                                    if (isTextSafe) {
-                                        uploadVideoAndData(videoUri, videoName, description, selectedCategory, previewUri, user) {
-                                            isLoading = false
-                                            showSnackbar = true
-                                        }
-                                    } else {
-                                        isLoading = false
-                                        showSnackbarError = true
-                                    }
+                        ExposedDropdownMenuBox(
+                            expanded = expanded,
+                            onExpandedChange = { expanded = !expanded },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            TextField(
+                                modifier = Modifier
+                                    .menuAnchor()
+                                    .fillMaxWidth(),
+                                value = selectedCategory,
+                                onValueChange = {},
+                                label = { Text("Категория") },
+                                readOnly = true,
+                                trailingIcon = {
+                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
                                 }
-                            } else {
-                                isLoading = false
-                                showSnackbarError = true
+                            )
+
+                            ExposedDropdownMenu(
+                                expanded = expanded,
+                                onDismissRequest = { expanded = false },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                categories.forEachIndexed { index, category ->
+                                    DropdownMenuItem(
+                                        text = { Text(text = category) },
+                                        onClick = {
+                                            selectedCategory = categories[index]
+                                            expanded = false
+                                        },
+                                        contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                                    )
+                                }
                             }
                         }
-                    } else {
-                        showSnackbarError = true
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Button(onClick = {
+                            if (videoUri != null && previewUri != null) {
+                                currentStep = 2 // Переходим ко второму этапу
+                            } else {
+                                showSnackbarError = true
+                            }
+                        }, modifier = Modifier.fillMaxWidth(),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface)) {
+                            Text("Далее")
+                        }
                     }
-                }) {
-                    Text("Загрузить видео")
-                }
+                    2 -> {
+                        // Второй этап
+                        Text("Превью загружаемого видео", style = MaterialTheme.typography.bodyMedium)
+                        Spacer(modifier = Modifier.height(16.dp))
 
+                        videoUri?.let {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                previewUri?.let {
+                                    Image(
+                                        painter = rememberAsyncImagePainter(it),
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .height(200.dp)
+                                            .fillMaxWidth()
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
 
-                if (isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.padding(top = 16.dp).align(Alignment.CenterHorizontally))
+                                Text("Название: $videoName", style = MaterialTheme.typography.titleMedium)
+                                Text("Описание: $description", style = MaterialTheme.typography.titleSmall)
+                                Text("Категория: $selectedCategory", style = MaterialTheme.typography.titleSmall)
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Button(onClick = { currentStep = 1 },
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface)) {
+                                    Text("Назад")
+                                }
+
+                                Button(
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface),
+                                    onClick = {
+                                    isLoading = true
+
+                                    // Фильтрация изображения
+                                    filterImage(previewUri!!, context) { isImageSafe ->
+                                        if (isImageSafe) {
+                                            // Фильтрация текста
+                                            filterTextContent(videoName + " " + description) { isTextSafe ->
+                                                if (isTextSafe) {
+                                                    uploadVideoAndData(videoUri, videoName, description, selectedCategory, previewUri, user) {
+                                                        isLoading = false
+                                                        showSnackbar = true
+                                                    }
+                                                } else {
+                                                    isLoading = false
+                                                    showSnackbarError = true
+                                                }
+                                            }
+                                        } else {
+                                            isLoading = false
+                                            showSnackbarError = true
+                                        }
+                                    }
+                                }) {
+                                    Text("Загрузить")
+                                }
+                            }
+
+                            if (isLoading) {
+                                CircularProgressIndicator(modifier = Modifier
+                                    .padding(top = 16.dp)
+                                    .align(Alignment.CenterHorizontally))
+                            }
+                        }
+                    }
                 }
             } else {
                 Text("Для загрузки видео войдите в систему.")
@@ -228,6 +286,7 @@ fun UploadScreen(auth: FirebaseAuth, navController: NavController) {
         }
     }
 }
+
 
 fun uploadVideoAndData(
     videoUri: Uri?,
