@@ -6,7 +6,9 @@ import android.util.Log
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.widget.FrameLayout
 import androidx.annotation.OptIn
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,10 +17,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -28,7 +32,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -41,6 +44,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
@@ -50,6 +56,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import androidx.navigation.NavController
+import com.example.su.R
 import com.example.su.models.Playlist
 import com.example.su.models.Video
 import com.google.firebase.auth.FirebaseAuth
@@ -67,6 +74,9 @@ fun DetailedPage(videoId: String, navController: NavController) {
     val currentUser = auth.currentUser
     var showDialog by remember { mutableStateOf(false) }
     val isLiked = remember { mutableStateOf(false) }
+    val isPlaylisted = remember { mutableStateOf(false) }
+
+    var isExpanded by remember { mutableStateOf(false) }
 
     DisposableEffect(videoId) {
         val docRef = db.collection("videos").document(videoId)
@@ -84,8 +94,23 @@ fun DetailedPage(videoId: String, navController: NavController) {
             }
 
             if (snapshot != null && snapshot.exists()) {
+                val likedByList = snapshot.get("likedBy") as? List<String>
+                if (likedByList == null) {
+                    // Если поле "likedBy" не существует, создаём его
+                    db.collection("videos").document(snapshot.id)
+                        .update("likedBy", listOf<String>())
+                        .addOnSuccessListener {
+                            // Поле "likedBy" создано успешно
+                            isLiked.value = currentUser?.uid in (snapshot.get("likedBy") as? List<String> ?: listOf())
+                        }
+                        .addOnFailureListener {
+                            // Обработка ошибки при создании поля
+                        }
+                } else {
+                    // Поле "likedBy" существует
+                    isLiked.value = currentUser?.uid in likedByList
+                }
                 video.value = snapshot.toObject(Video::class.java)?.apply { id = snapshot.id }
-                isLiked.value = currentUser?.uid in (snapshot.get("likedBy") as? List<String> ?: listOf())
             }
         }
 
@@ -96,20 +121,93 @@ fun DetailedPage(videoId: String, navController: NavController) {
 
     video.value?.let { vid ->
         Column(modifier = Modifier
-            .padding(16.dp)
             .verticalScroll(rememberScrollState())
         ) {
             VideoPlayer(videoUrl = vid.videoUrl, navController, context = context)
-            Text(text = vid.videoName, style = MaterialTheme.typography.titleMedium)
-            Text(text = "Просмотры: ${vid.views}")
-            Text(text = "Лайки: ${vid.likes}")
-            Button(onClick = {
-                toggleLike(db, vid, currentUser)
-            }) {
-                Text(if (isLiked.value) "Убрать лайк" else "Поставить лайк")
-            }
-            Button(onClick = { showDialog = true }) {
-                Text("Добавить в плейлист")
+
+            Column(modifier = Modifier.padding(8.dp)) {
+                Text(text = vid.videoName, style = MaterialTheme.typography.titleLarge)
+
+                Box(modifier = Modifier
+                    .clickable { isExpanded = !isExpanded }
+                ) {
+                    Row {
+                        Text(
+                            text = "Описание: ${vid.description}",
+                            maxLines = if (isExpanded) Int.MAX_VALUE else 1,
+                            overflow = if (isExpanded) TextOverflow.Visible else TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+                }
+
+                Row {
+                    Icon(painter = painterResource(id = R.drawable.view), contentDescription = "view icon")
+                    Text(text = "${vid.views}", style = MaterialTheme.typography.titleMedium)
+                    Icon(painter = painterResource(id = R.drawable.thumb_up), contentDescription = "thumb_up")
+                    Text(text = "${vid.likes}")
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        IconButton(onClick = {
+                            subscribeUser(db, currentUser)
+                        }) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.profile),
+                                contentDescription = "channel picture")
+                        }
+                        /*Text(text = )*/
+                    }
+                    Column(
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        IconButton(onClick = {
+                            toggleLike(db, vid, currentUser)
+                        }) {
+                            if (isLiked.value) {
+                                Column {
+                                    Icon(modifier = Modifier.size(38.dp), painter = painterResource(id = R.drawable.liked), contentDescription = "unliked press")
+                                }
+                            } else {
+                                Column {
+                                    Icon(modifier = Modifier.size(38.dp), painter = painterResource(id = R.drawable.unliked), contentDescription = "liked press")
+                                }
+                            }
+                        }
+                        if (isLiked.value) {
+                            Text(text = "Убрать", style = MaterialTheme.typography.titleSmall)
+                        } else {
+                            Text(text = "Нрав.", style = MaterialTheme.typography.titleSmall)
+                        }
+                    }
+                    Column {
+                        IconButton(
+                            onClick = { showDialog = true }
+                        ) {
+                            if (isPlaylisted.value) { /* не работает */
+                                Column {
+                                    Icon(modifier = Modifier.size(38.dp), painter = painterResource(id = R.drawable.category_filled), contentDescription = "unliked press")
+                                }
+                            } else {
+                                Column {
+                                    Icon(modifier = Modifier.size(38.dp), painter = painterResource(id = R.drawable.add_category), contentDescription = "liked press")
+                                }
+                            }
+                        }
+                        /* if (isPlaylisted.value) { /* не работает */
+                            Text(text = "В плейлист", style = MaterialTheme.typography.titleSmall)
+                        } else {
+                            Text(text = "В плейлист", style = MaterialTheme.typography.titleSmall)
+                        } */
+                    }
+                }
             }
         }
     } ?: Text("Загрузка видео...")
@@ -124,7 +222,6 @@ fun DetailedPage(videoId: String, navController: NavController) {
     }
 }
 
-
 fun toggleLike(db: FirebaseFirestore, video: Video, user: FirebaseUser?) {
     if (user == null) return
     val videoRef = db.collection("videos").document(video.id)
@@ -133,7 +230,7 @@ fun toggleLike(db: FirebaseFirestore, video: Video, user: FirebaseUser?) {
     db.runTransaction { transaction ->
         val videoSnapshot = transaction.get(videoRef)
         val userSnapshot = transaction.get(userRef)
-        val likedBy = videoSnapshot.get("likedBy") as List<String>
+        val likedBy = videoSnapshot.get("likedBy") as List<String> ?: listOf()
         val likedVideos = userSnapshot.get("likedVideos") as? List<String> ?: listOf()
 
         if (user.uid in likedBy) {
@@ -186,11 +283,32 @@ fun PlaylistDialog(
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(text = "Выберите плейлист или создайте новый", style = MaterialTheme.typography.titleMedium)
                 if (isCreatingNewPlaylist) {
-                    TextField(
-                        value = playlistName,
-                        onValueChange = { playlistName = it },
-                        label = { Text("Название нового плейлиста") }
-                    )
+                    Box(
+                        modifier = Modifier
+                            .border(
+                                2.dp,
+                                MaterialTheme.colorScheme.primary,
+                                RoundedCornerShape(8.dp)
+                            )
+                            .padding(8.dp)
+                    ) {
+                        BasicTextField(
+                            value = playlistName,
+                            onValueChange = { playlistName= it },
+                            singleLine = true,
+                            textStyle = TextStyle(color = Color.Black),
+                            decorationBox = { innerTextField ->
+                                if (playlistName.isEmpty()) {
+                                    Text(
+                                        text = "Название нового плейлиста",
+                                        style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
+                                    )
+                                }
+                                innerTextField()
+                            },
+                            modifier = Modifier.padding(4.dp)
+                        )
+                    }
                     Spacer(modifier = Modifier.height(8.dp))
                     Button(onClick = {
                         user?.let {
@@ -226,7 +344,17 @@ fun PlaylistDialog(
                                     }
                                     .padding(8.dp)
                             ) {
-                                Text(text = playlist.name)
+                                Box(
+                                    modifier = Modifier
+                                        .border(
+                                            2.dp,
+                                            MaterialTheme.colorScheme.primary,
+                                            RoundedCornerShape(8.dp)
+                                        )
+                                        .padding(8.dp)
+                                ) {
+                                        Text(text = playlist.name)
+                                }
                             }
                         }
                     }
@@ -242,6 +370,11 @@ fun PlaylistDialog(
             }
         }
     }
+}
+
+fun subscribeUser(db: FirebaseFirestore, user: FirebaseUser?) {
+    if (user == null) return
+
 }
 
 fun addVideoToPlaylist(db: FirebaseFirestore, user: FirebaseUser?, playlistId: String, video: Video) {
@@ -262,8 +395,7 @@ fun addVideoToPlaylist(db: FirebaseFirestore, user: FirebaseUser?, playlistId: S
 
 
 
-@Composable
-@OptIn(UnstableApi::class)
+@OptIn(UnstableApi::class) @Composable
 fun VideoPlayer(videoUrl: String, navController: NavController, context: Context) {
     val exoPlayer = remember {
         ExoPlayer.Builder(context).build().apply {
@@ -312,7 +444,5 @@ fun VideoPlayer(videoUrl: String, navController: NavController, context: Context
         exoPlayer.playWhenReady = true
     }
 }
-
-
 
 

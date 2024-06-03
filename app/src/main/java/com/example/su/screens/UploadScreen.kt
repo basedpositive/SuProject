@@ -71,7 +71,7 @@ fun UploadScreen(auth: FirebaseAuth, navController: NavController) {
 
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val categories = listOf("Без категорий", "Образование", "Музыка", "Спорт", "Технологии", "Хобби")
+    val categories = listOf("Образование", "Музыка", "Спорт", "Технологии", "Хобби", "Без категорий")
     var selectedCategory by remember { mutableStateOf(categories[0]) }
     var expanded by remember { mutableStateOf(false) }
 
@@ -392,6 +392,7 @@ fun filterTextContent(text: String, onSuccess: (Boolean) -> Unit) {
         }
 }
 
+/* ПРИМЕР */
 fun containsBadWords(text: String): Boolean {
     // Пример списка плохих слов
     val badWords = listOf("dick", "nigga", "nigger")

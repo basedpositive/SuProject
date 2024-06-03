@@ -83,6 +83,7 @@ dependencies {
     implementation("com.eygraber:compose-placeholder-material3:1.0.7")
     implementation("com.github.fengdai.compose:media:0.4.0")
 
-    implementation (libs.language.id)
-    implementation (libs.image.labeling)
+
+    implementation(libs.language.id)
+    implementation(libs.image.labeling)
 }

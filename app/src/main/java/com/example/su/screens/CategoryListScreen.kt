@@ -29,7 +29,7 @@ import kotlinx.coroutines.tasks.await
 
 @Composable
 fun CategoryListScreen(navController: NavController, db: FirebaseFirestore) {
-    val categories = listOf("Без категорий", "Образование", "Музыка", "Спорт", "Технологии", "Хобби")
+    val categories = listOf("Образование", "Музыка", "Спорт", "Технологии", "Хобби", "Без категорий")
     var selectedCategory by remember { mutableStateOf(categories[0]) }
 
     Column {

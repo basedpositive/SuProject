@@ -51,7 +51,7 @@ fun PlaylistScreen(navController: NavController, db: FirebaseFirestore, userId: 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Мои плейлисты") },
+                title = { Text("Библеотека") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")

@@ -3,35 +3,49 @@ package com.example.su.screens
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import androidx.wear.compose.material.ContentAlpha
 import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
+import com.example.su.R
 import com.example.su.models.Video
 import com.eygraber.compose.placeholder.PlaceholderHighlight
 import com.eygraber.compose.placeholder.material3.placeholder
@@ -43,6 +57,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlin.random.Random
 
 
 fun FirebaseFirestore.snapshotFlow(collectionPath: String): Flow<QuerySnapshot> = callbackFlow {
@@ -56,13 +71,16 @@ fun FirebaseFirestore.snapshotFlow(collectionPath: String): Flow<QuerySnapshot> 
     awaitClose { listener.remove() }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(navController: NavController) {
     val videos = remember { mutableStateListOf<Video>() }
     val filteredVideos = remember { mutableStateListOf<Video>() }
-    val searchQuery = remember { mutableStateOf("") }
     val db = FirebaseFirestore.getInstance()
+
+    val searchQuery = remember { mutableStateOf("") }
+    val isSearchVisible = remember { mutableStateOf(false) }
+    val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     LaunchedEffect(Unit) {
         launch {
@@ -79,6 +97,7 @@ fun HomeScreen(navController: NavController) {
                         videos.add(video)
                     }
                 }
+                videos.shuffle(Random(System.currentTimeMillis()))
                 updateFilteredVideos(searchQuery.value, videos, filteredVideos)
             }
         }
@@ -86,25 +105,53 @@ fun HomeScreen(navController: NavController) {
 
     Column(
         modifier = Modifier
-            .background(MaterialTheme.colorScheme.background)
+            .background(MaterialTheme.colorScheme.background),
+        horizontalAlignment = Alignment.End
     ) {
-        TextField(
-            value = searchQuery.value,
-            onValueChange = { query ->
-                searchQuery.value = query
-                updateFilteredVideos(query, videos, filteredVideos)
-            },
-            label = { Text("Поиск видео") },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            colors = TextFieldDefaults.colors(
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                unfocusedIndicatorColor = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.disabled)
+        if (isSearchVisible.value) {
+            TextField(
+                value = searchQuery.value,
+                onValueChange = { query ->
+                    searchQuery.value = query
+                    updateFilteredVideos(query, videos, filteredVideos)
+                },
+                label = { Text("Поиск видео") },
+                singleLine = true,
+                leadingIcon = {
+                    IconButton(onClick = { isSearchVisible.value = false }) {
+                        Icon(imageVector = Icons.Filled.Search, contentDescription = "search icon")
+                    }
+                },
+                trailingIcon = {
+                    IconButton(onClick = {
+                        keyboardController?.hide()
+                        isSearchVisible.value = false
+                    }) {
+                        Icon(imageVector = Icons.Filled.Close, contentDescription = "close search")
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .focusRequester(focusRequester),
+                keyboardOptions = KeyboardOptions.Default.copy(
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(
+                    onDone = {
+                        keyboardController?.hide()
+                    }
+                )
             )
-        )
+        } else {
+            IconButton(onClick = { isSearchVisible.value = true }) {
+                Icon(
+                    modifier = Modifier.size(30.dp),
+                    imageVector = Icons.Filled.Search,
+                    contentDescription = "search icon"
+                )
+            }
+        }
 
         LazyColumn {
             items(filteredVideos) { video ->
@@ -125,11 +172,10 @@ fun VideoItem(video: Video, navController: NavController) {
 
     Column(
         modifier = Modifier
-            .padding(8.dp)
+            .padding(vertical = 8.dp)
             .fillMaxWidth()
             .clickable { navController.navigate("detailed/${video.id}") }
             .background(MaterialTheme.colorScheme.surface)
-            .padding(8.dp)
     ) {
         Image(
             painter = painter,
@@ -140,19 +186,30 @@ fun VideoItem(video: Video, navController: NavController) {
                 .height(238.dp)
                 .placeholder(isLoading, highlight = PlaceholderHighlight.shimmer())
         )
-        Column(modifier = Modifier
-            .padding(start = 8.dp)) {
-            Text(
-                text = video.videoName,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.placeholder(isLoading, highlight = PlaceholderHighlight.shimmer())
+        Row(
+            modifier = Modifier
+            .padding(start = 8.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.profile),
+                contentDescription = "channel picture"
             )
-            Text(
-                text = video.userName ?: "Гость",
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.placeholder(isLoading, highlight = PlaceholderHighlight.shimmer())
-            )
+            Column(modifier = Modifier
+                .padding(start = 8.dp)) {
+                Text(
+                    text = video.videoName,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.placeholder(isLoading, highlight = PlaceholderHighlight.shimmer())
+                )
+                Text(
+                    text = video.userName ?: "Гость",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.placeholder(isLoading, highlight = PlaceholderHighlight.shimmer())
+                )
+            }
         }
         Spacer(modifier = Modifier.height(8.dp))
     }

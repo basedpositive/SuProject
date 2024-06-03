@@ -60,8 +60,7 @@ fun ProfileScreen(navController: NavController, auth: FirebaseAuth) {
 
     Column(
         modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
+            .fillMaxSize().padding(vertical = 8.dp)
     ) {
         if (user != null) {
             ProfileHeader(username = username, email = email, navController, userId = user.uid)
@@ -89,7 +88,7 @@ fun Previews(){
 @Composable
 fun ProfileHeader(username: String, email: String, navController: NavController, userId: String) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween // Добавляем этот параметр для равномерного распределения пространства
     ) {

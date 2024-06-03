@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -19,6 +20,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -26,7 +29,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import androidx.wear.compose.material.ContentAlpha
 import com.example.su.models.Screen
 import com.example.su.screens.CategoryListScreen
 import com.example.su.screens.HomeScreen
@@ -87,7 +89,7 @@ fun MainScreen() {
                     val videoId = backStackEntry.arguments?.getString("videoId") ?: ""
                     DetailedPage(videoId = videoId, navController)
                 }
-                composable("settings") { SettingsScreen(preferences) }
+                composable("settings") { SettingsScreen(preferences, auth, navController) }
                 composable("playlists/{userId}", arguments = listOf(navArgument("userId") { type = NavType.StringType })) { backStackEntry ->
                     val userId = backStackEntry.arguments?.getString("userId") ?: ""
                     PlaylistScreen(navController, db, userId)
@@ -111,14 +113,22 @@ fun AppBottomNavigation(navController: NavController) {
     )
     NavigationBar(
         containerColor = MaterialTheme.colorScheme.surface,
-        contentColor = MaterialTheme.colorScheme.onSurface
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier.height(80.dp)
     ) {
         val currentRoute = currentRoute(navController)
         items.forEach { screen ->
+            val isSelected = currentRoute == screen.route
             NavigationBarItem(
-                icon = { Icon(screen.icon, contentDescription = null) },
+                icon = {
+                    Icon(
+                        painter = painterResource(id = if (isSelected) screen.filledIcon else screen.unfilledIcon),
+                        contentDescription = null
+                    )
+                },
                 label = { Text(screen.title) },
-                selected = currentRoute == screen.route,
+                alwaysShowLabel = false,
+                selected = isSelected,
                 onClick = {
                     navController.navigate(screen.route) {
                         popUpTo(navController.graph.startDestinationId)
@@ -126,18 +136,18 @@ fun AppBottomNavigation(navController: NavController) {
                     }
                 },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = MaterialTheme.colorScheme.onSurface,
-                    unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.medium),
-                    selectedTextColor = MaterialTheme.colorScheme.primary,
-                    unselectedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.medium)
+                    selectedTextColor = MaterialTheme.colorScheme.onSecondary,
+                    indicatorColor = MaterialTheme.colorScheme.onError
                 )
             )
         }
     }
 }
 
+
 @Composable
 fun currentRoute(navController: NavController): String? {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     return navBackStackEntry?.destination?.route
 }
+
