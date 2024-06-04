@@ -40,6 +40,7 @@ import com.example.su.screens.pages.DetailedPage
 import com.example.su.screens.pages.FullScreenVideoPlayer
 import com.example.su.screens.pages.PlaylistScreen
 import com.example.su.screens.pages.SettingsScreen
+import com.example.su.screens.pages.UserPageScreen
 import com.example.su.ui.theme.SuTheme
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
@@ -97,6 +98,10 @@ fun MainScreen() {
                 composable("fullscreen/{videoUrl}", arguments = listOf(navArgument("videoUrl") { type = NavType.StringType })) { backStackEntry ->
                     val videoUrl = backStackEntry.arguments?.getString("videoUrl") ?: ""
                     FullScreenVideoPlayer(videoUrl = videoUrl, navController, context = LocalContext.current)
+                }
+                composable("userPage/{userId}") { backStackEntry ->
+                    val userId = backStackEntry.arguments?.getString("userId") ?: return@composable
+                    UserPageScreen(navController, userId, FirebaseFirestore.getInstance())
                 }
             }
         }

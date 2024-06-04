@@ -60,19 +60,12 @@ fun ProfileScreen(navController: NavController, auth: FirebaseAuth) {
 
     Column(
         modifier = Modifier
-            .fillMaxSize().padding(vertical = 8.dp)
+            .fillMaxSize()
+            .padding(vertical = 8.dp)
     ) {
         if (user != null) {
             ProfileHeader(username = username, email = email, navController, userId = user.uid)
             ProfileContent(navController = navController, auth = auth, db = db)
-            LogoutButton(onLogout = {
-                auth.signOut()
-                navController.navigate("login") {
-                    popUpTo(navController.graph.startDestinationId) {
-                        inclusive = true
-                    }
-                }
-            })
         } else {
             SignInButtons(navController = navController)
         }
@@ -88,12 +81,15 @@ fun Previews(){
 @Composable
 fun ProfileHeader(username: String, email: String, navController: NavController, userId: String) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween // Добавляем этот параметр для равномерного распределения пространства
     ) {
         Column(
-            modifier = Modifier.weight(1f) // Этот модификатор заставит Column занять все доступное пространство, кроме места для иконки
+            modifier = Modifier
+                .weight(1f) // Этот модификатор заставит Column занять все доступное пространство, кроме места для иконки
                 .padding(start = 16.dp)
         ) {
             Text(text = username, style = MaterialTheme.typography.headlineMedium)
@@ -234,12 +230,18 @@ fun LogoutButton(onLogout: () -> Unit) {
 
 @Composable
 fun SignInButtons(navController: NavController) {
-    Button(onClick = { navController.navigate("login") }) {
-        Text(text = "Войти")
-    }
-    Spacer(modifier = Modifier.height(8.dp))
-    Button(onClick = { navController.navigate("registration") }) {
-        Text(text = "Регистрация")
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Button(onClick = { navController.navigate("login") }) {
+            Text(text = "Войти")
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Button(onClick = { navController.navigate("registration") }) {
+            Text(text = "Регистрация")
+        }
     }
 }
 

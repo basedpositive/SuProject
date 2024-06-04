@@ -63,7 +63,21 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.QuerySnapshot
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 
+fun FirebaseFirestore.snapshotFlow(collectionPath: String): Flow<QuerySnapshot> = callbackFlow {
+    val listener = collection(collectionPath).addSnapshotListener { snapshot, e ->
+        if (e != null) {
+            close(e)
+        } else if (snapshot != null) {
+            trySend(snapshot).isSuccess
+        }
+    }
+    awaitClose { listener.remove() }
+}
 
 @Composable
 fun DetailedPage(videoId: String, navController: NavController) {
@@ -77,6 +91,7 @@ fun DetailedPage(videoId: String, navController: NavController) {
     val isPlaylisted = remember { mutableStateOf(false) }
 
     var isExpanded by remember { mutableStateOf(false) }
+    val isSubscribed = remember { mutableStateOf(false) }
 
     DisposableEffect(videoId) {
         val docRef = db.collection("videos").document(videoId)
@@ -100,16 +115,14 @@ fun DetailedPage(videoId: String, navController: NavController) {
                     db.collection("videos").document(snapshot.id)
                         .update("likedBy", listOf<String>())
                         .addOnSuccessListener {
-                            // Поле "likedBy" создано успешно
                             isLiked.value = currentUser?.uid in (snapshot.get("likedBy") as? List<String> ?: listOf())
                         }
-                        .addOnFailureListener {
-                            // Обработка ошибки при создании поля
-                        }
+                        .addOnFailureListener {}
                 } else {
                     // Поле "likedBy" существует
                     isLiked.value = currentUser?.uid in likedByList
                 }
+
                 video.value = snapshot.toObject(Video::class.java)?.apply { id = snapshot.id }
             }
         }
@@ -119,18 +132,24 @@ fun DetailedPage(videoId: String, navController: NavController) {
         }
     }
 
+    LaunchedEffect(videoId) {
+        // Инициализируем состояние подписки
+        currentUser?.uid?.let { uid ->
+            db.collection("users").document(uid).get().addOnSuccessListener { document ->
+                val subscriptions = document.get("subscriptions") as? List<String> ?: emptyList()
+                isSubscribed.value = video.value?.userId in subscriptions
+            }
+        }
+    }
+
     video.value?.let { vid ->
-        Column(modifier = Modifier
-            .verticalScroll(rememberScrollState())
-        ) {
+        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
             VideoPlayer(videoUrl = vid.videoUrl, navController, context = context)
 
             Column(modifier = Modifier.padding(8.dp)) {
                 Text(text = vid.videoName, style = MaterialTheme.typography.titleLarge)
 
-                Box(modifier = Modifier
-                    .clickable { isExpanded = !isExpanded }
-                ) {
+                Box(modifier = Modifier.clickable { isExpanded = !isExpanded }) {
                     Row {
                         Text(
                             text = "Описание: ${vid.description}",
@@ -156,13 +175,32 @@ fun DetailedPage(videoId: String, navController: NavController) {
                 ) {
                     Column {
                         IconButton(onClick = {
-                            subscribeUser(db, currentUser)
+                            navController.navigate("userPage/${vid.userId}")
                         }) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.profile),
-                                contentDescription = "channel picture")
+                            Icon(painter = painterResource(id = R.drawable.profile), contentDescription = "Профиль")
                         }
-                        /*Text(text = )*/
+                    }
+                    Row {
+                        Button(onClick = {
+                            currentUser?.uid?.let { uid ->
+                                val userDocRef = db.collection("users").document(uid)
+                                val videoOwnerDocRef = db.collection("users").document(vid.userId)
+
+                                if (isSubscribed.value) {
+                                    // Отписаться
+                                    userDocRef.update("subscriptions", FieldValue.arrayRemove(vid.userId))
+                                    videoOwnerDocRef.update("subscribers", FieldValue.arrayRemove(uid))
+                                } else {
+                                    // Подписаться
+                                    userDocRef.update("subscriptions", FieldValue.arrayUnion(vid.userId))
+                                    videoOwnerDocRef.update("subscribers", FieldValue.arrayUnion(uid))
+                                }
+
+                                isSubscribed.value = !isSubscribed.value
+                            }
+                        }) {
+                            Text(if (isSubscribed.value) "Отписаться" else "Подписаться")
+                        }
                     }
                     Column(
                         verticalArrangement = Arrangement.Center,
@@ -219,6 +257,32 @@ fun DetailedPage(videoId: String, navController: NavController) {
             video = video.value!!,
             onDismissRequest = { showDialog = false }
         )
+    }
+}
+
+
+
+fun toggleSub(db: FirebaseFirestore, video: Video, user: FirebaseUser?) {
+    if (user == null) return
+    val videoRef = db.collection("videos").document(video.id)
+    val userRef = db.collection("users").document(user.uid)
+
+    db.runTransaction { transaction ->
+        val videoSnapshot = transaction.get(videoRef)
+        val userSnapshot = transaction.get(userRef)
+        val subscribeTo = userSnapshot.get("likedVideos") as? List<String> ?: listOf()
+
+        if (user.uid in subscribeTo) {
+            // Подписка
+            transaction.update(userRef, "subscribeTo", FieldValue.arrayRemove(video.id))
+        } else {
+            // Отписка
+            transaction.update(userRef, "subscribeTo", FieldValue.arrayUnion(video.id))
+        }
+    }.addOnSuccessListener {
+        Log.d("toggleSub", "Transaction success!")
+    }.addOnFailureListener { e ->
+        Log.w("toggleSub", "Transaction failure.", e)
     }
 }
 
@@ -372,10 +436,6 @@ fun PlaylistDialog(
     }
 }
 
-fun subscribeUser(db: FirebaseFirestore, user: FirebaseUser?) {
-    if (user == null) return
-
-}
 
 fun addVideoToPlaylist(db: FirebaseFirestore, user: FirebaseUser?, playlistId: String, video: Video) {
     if (user == null) return
@@ -392,7 +452,6 @@ fun addVideoToPlaylist(db: FirebaseFirestore, user: FirebaseUser?, playlistId: S
             Log.e("PlaylistDialog", "Error adding video to playlist", it)
         }
 }
-
 
 
 @OptIn(UnstableApi::class) @Composable

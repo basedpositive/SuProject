@@ -5,7 +5,7 @@ import java.io.Serializable
 data class Video(
     var id: String = "",
     var userId: String = "",
-    var userName: String? = null,
+    var userName: String = "",
     var videoName: String = "",
     var previewUrl: String = "",
 
