@@ -77,7 +77,7 @@ fun CategoryVideosView(category: String, navController: NavController, db: Fireb
         videoDocuments.documents.forEach { document ->
             val video = document.toObject(Video::class.java)?.apply {
                 id = document.id
-                userName = "Загружается..." // Инициализируем временное значение
+                userName = "Загружается..."
             }
             if (video != null) {
                 val userDoc = db.collection("users").document(video.userId).get().await()

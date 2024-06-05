@@ -6,6 +6,7 @@ import android.util.Log
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.widget.FrameLayout
 import androidx.annotation.OptIn
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -63,21 +64,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.QuerySnapshot
-import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
 
-fun FirebaseFirestore.snapshotFlow(collectionPath: String): Flow<QuerySnapshot> = callbackFlow {
-    val listener = collection(collectionPath).addSnapshotListener { snapshot, e ->
-        if (e != null) {
-            close(e)
-        } else if (snapshot != null) {
-            trySend(snapshot).isSuccess
-        }
-    }
-    awaitClose { listener.remove() }
-}
 
 @Composable
 fun DetailedPage(videoId: String, navController: NavController) {
@@ -198,7 +185,11 @@ fun DetailedPage(videoId: String, navController: NavController) {
 
                                 isSubscribed.value = !isSubscribed.value
                             }
-                        }) {
+                        },
+                            modifier = Modifier.border(
+                                border = if (isSubscribed.value) BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface) else BorderStroke(0.dp, Color.Transparent)
+                            )
+                        ) {
                             Text(if (isSubscribed.value) "Отписаться" else "Подписаться")
                         }
                     }

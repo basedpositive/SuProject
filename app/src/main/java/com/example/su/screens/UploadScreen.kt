@@ -67,7 +67,7 @@ fun UploadScreen(auth: FirebaseAuth, navController: NavController) {
     var isLoading by remember { mutableStateOf(false) }
     var showSnackbar by remember { mutableStateOf(false) }
     var showSnackbarError by remember { mutableStateOf(false) }
-    var currentStep by remember { mutableStateOf(1) } // 1 - выбор видео и информации, 2 - подтверждение
+    var currentStep by remember { mutableStateOf(1) }
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -194,7 +194,7 @@ fun UploadScreen(auth: FirebaseAuth, navController: NavController) {
 
                         Button(onClick = {
                             if (videoUri != null && previewUri != null) {
-                                currentStep = 2 // Переходим ко второму этапу
+                                currentStep = 2 // Переход ко второму этапу
                             } else {
                                 showSnackbarError = true
                             }
@@ -361,11 +361,11 @@ fun filterImage(imageUri: Uri, context: Context, onSuccess: (Boolean) -> Unit) {
                     break
                 }
             }
-            onSuccess(!containsExplicitContent)  // Возвращает true если контент безопасен
+            onSuccess(!containsExplicitContent)
         }
         .addOnFailureListener { e ->
             Log.e("ImageLabeling", "Error processing image", e)
-            onSuccess(false)  // Возвращает false если возникла ошибка
+            onSuccess(false)
         }
 }
 
@@ -383,19 +383,19 @@ fun filterTextContent(text: String, onSuccess: (Boolean) -> Unit) {
                 onSuccess(false)
             } else {
                 val containsBadWords = containsBadWords(text)
-                onSuccess(!containsBadWords)  // Возвращает true если контент безопасен
+                onSuccess(!containsBadWords)
             }
         }
         .addOnFailureListener { e ->
             Log.e("LanguageID", "Error identifying language", e)
-            onSuccess(false)  // Возвращает false если возникла ошибка
+            onSuccess(false)
         }
 }
 
-/* ПРИМЕР */
+
 fun containsBadWords(text: String): Boolean {
     // Пример списка плохих слов
-    val badWords = listOf("dick", "nigga", "nigger")
+    val badWords = listOf("dick", "trash-talk", "и т.д")
     return badWords.any { text.contains(it, ignoreCase = true) }
 }
 

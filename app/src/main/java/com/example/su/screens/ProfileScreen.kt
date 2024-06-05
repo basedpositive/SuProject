@@ -85,11 +85,11 @@ fun ProfileHeader(username: String, email: String, navController: NavController,
             .fillMaxWidth()
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween // Добавляем этот параметр для равномерного распределения пространства
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Column(
             modifier = Modifier
-                .weight(1f) // Этот модификатор заставит Column занять все доступное пространство, кроме места для иконки
+                .weight(1f)
                 .padding(start = 16.dp)
         ) {
             Text(text = username, style = MaterialTheme.typography.headlineMedium)
@@ -202,7 +202,7 @@ fun UserVideosView(navController: NavController, auth: FirebaseAuth, db: Firebas
                 snapshot.documents.forEach { document ->
                     document.toObject(Video::class.java)?.let { video ->
                         video.id = document.id
-                        video.userName = "Загружается..." // Инициализируем временное значение
+                        video.userName = "Загружается..."
                         db.collection("users").document(video.userId).get().addOnSuccessListener { userDoc ->
                             video.userName = userDoc.getString("username") ?: "Неизвестный пользователь"
                             videos.add(video)
