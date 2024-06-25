@@ -1,16 +1,18 @@
 package com.example.su.screens
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,25 +21,33 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -82,6 +92,15 @@ fun HomeScreen(navController: NavController) {
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
 
+    val sortOptions = listOf("Просмотры", "Дата загрузки", "Лайки", "Популярность")
+    val selectedSortOption = remember { mutableStateOf(sortOptions[0]) }
+    var expanded by remember { mutableStateOf(false) }
+
+    val bloggerSansFamily = FontFamily(
+        Font(R.font.blogger_sans, FontWeight.Normal),
+        Font(R.font.bloggersans_bold, FontWeight.Bold),
+    )
+
     LaunchedEffect(Unit) {
         launch {
             db.snapshotFlow("videos").collect { snapshot ->
@@ -98,24 +117,24 @@ fun HomeScreen(navController: NavController) {
                     }
                 }
                 videos.shuffle(Random(System.currentTimeMillis()))
-                updateFilteredVideos(searchQuery.value, videos, filteredVideos)
+                updateFilteredVideos(searchQuery.value, videos, filteredVideos, selectedSortOption.value)
             }
         }
     }
 
     Column(
         modifier = Modifier
-            .background(MaterialTheme.colorScheme.background),
-        horizontalAlignment = Alignment.End
+            .background(MaterialTheme.colorScheme.background)
+            .fillMaxSize()
     ) {
         if (isSearchVisible.value) {
-            TextField(
+            OutlinedTextField(
                 value = searchQuery.value,
                 onValueChange = { query ->
                     searchQuery.value = query
-                    updateFilteredVideos(query, videos, filteredVideos)
+                    updateFilteredVideos(query, videos, filteredVideos, selectedSortOption.value)
                 },
-                label = { Text("Поиск видео") },
+                label = { Text("Что ищите?") },
                 singleLine = true,
                 leadingIcon = {
                     IconButton(onClick = { isSearchVisible.value = false }) {
@@ -144,12 +163,70 @@ fun HomeScreen(navController: NavController) {
                 )
             )
         } else {
-            IconButton(onClick = { isSearchVisible.value = true }) {
-                Icon(
-                    modifier = Modifier.size(30.dp),
-                    imageVector = Icons.Filled.Search,
-                    contentDescription = "search icon"
-                )
+            Column {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Смотри, учись и развивайся",
+                        fontFamily = bloggerSansFamily,
+                        fontWeight = FontWeight.Normal
+                    )
+                    IconButton(onClick = { isSearchVisible.value = true }) {
+                        Icon(
+                            imageVector = Icons.Filled.Search,
+                            contentDescription = "search icon"
+                        )
+                    }
+                }
+                Canvas(modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)) {
+                    drawLine(
+                        color = Color.Gray,
+                        start = Offset(0f, 0f),
+                        end = Offset(size.width, 0f),
+                        strokeWidth = 1f
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "Сортировать по:")
+                    Box {
+                        Text(
+                            text = selectedSortOption.value,
+                            modifier = Modifier
+                                .clickable { expanded = true }
+                                .background(MaterialTheme.colorScheme.surface)
+                                .padding(8.dp)
+                        )
+                        DropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false }
+                        ) {
+                            sortOptions.forEach { option ->
+                                DropdownMenuItem(
+                                    onClick = {
+                                        selectedSortOption.value = option
+                                        expanded = false
+                                        updateFilteredVideos(searchQuery.value, videos, filteredVideos, option)
+                                    },
+                                    text = { Text(option) }
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -160,6 +237,7 @@ fun HomeScreen(navController: NavController) {
         }
     }
 }
+
 
 @Composable
 fun VideoItem(video: Video, navController: NavController) {
@@ -215,12 +293,31 @@ fun VideoItem(video: Video, navController: NavController) {
     }
 }
 
-private fun updateFilteredVideos(query: String, videos: List<Video>, filteredVideos: SnapshotStateList<Video>) {
+private fun updateFilteredVideos(query: String, videos: List<Video>, filteredVideos: SnapshotStateList<Video>, sortOption: String) {
     filteredVideos.clear()
     val lowerCaseQuery = query.lowercase()
-    filteredVideos.addAll(videos.filter { video ->
-        video.videoName.lowercase().contains(lowerCaseQuery)
-    })
+    val filtered = videos.filter { video ->
+        video.videoName.lowercase().contains(lowerCaseQuery) || video.description.lowercase().contains(lowerCaseQuery)
+    }
+
+    filteredVideos.addAll(
+        when (sortOption) {
+            "Просмотры" -> filtered.sortedByDescending { it.views }
+            "Дата загрузки" -> filtered.sortedByDescending { it.dateUploaded }
+            "Лайки" -> filtered.sortedByDescending { it.likes }
+            "Популярность" -> filtered.sortedByDescending { calculatePopularity(it) }
+            else -> filtered.shuffled()
+        }
+    )
+}
+
+private fun calculatePopularity(video: Video): Double {
+    // Формула для расчета популярности (пример)
+    val viewsWeight = 0.4
+    val likesWeight = 0.4
+    val commentsWeight = 0.2
+
+    return (viewsWeight * video.views) + (likesWeight * video.likes)
 }
 
 

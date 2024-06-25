@@ -1,9 +1,15 @@
 package com.example.su
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -16,8 +22,11 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -38,6 +47,7 @@ import com.example.su.screens.auth.LoginScreen
 import com.example.su.screens.auth.RegistrationScreen
 import com.example.su.screens.pages.DetailedPage
 import com.example.su.screens.pages.FullScreenVideoPlayer
+import com.example.su.screens.pages.NoInternetScreen
 import com.example.su.screens.pages.PlaylistScreen
 import com.example.su.screens.pages.SettingsScreen
 import com.example.su.screens.pages.UserPageScreen
@@ -45,6 +55,7 @@ import com.example.su.ui.theme.SuTheme
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -55,12 +66,20 @@ class MainActivity : ComponentActivity() {
         FirebaseApp.initializeApp(this)
         setContent {
             SuTheme(darkTheme = isDarkTheme) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    MainScreen()
+                val isConnected = NetworkUtil.isConnectedToInternet(this)
+                if (isConnected) {
+                    // Отображаем основной контент
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        MainScreen()
+                    }
+                } else {
+                    Toast.makeText(this, "Нет соединения с Интернетом. Проверьте ваше подключение.", Toast.LENGTH_LONG).show()
+                    NoInternetScreen()
                 }
+
             }
         }
     }
@@ -76,8 +95,10 @@ fun MainScreen() {
     val db = FirebaseFirestore.getInstance()
     val preferences = LocalContext.current.getSharedPreferences("user_preferences", Context.MODE_PRIVATE)
 
+    val bottomBarState = rememberSaveable { (mutableStateOf(true)) }
+
     Scaffold(
-        bottomBar = { AppBottomNavigation(navController) },
+        bottomBar = { AppBottomNavigation(navController, bottomBarState) },
         content = { innerPadding ->
             NavHost(navController, startDestination = "home", modifier = Modifier.padding(innerPadding)) {
                 composable("home") { HomeScreen(navController) }
@@ -97,7 +118,7 @@ fun MainScreen() {
                 }
                 composable("fullscreen/{videoUrl}", arguments = listOf(navArgument("videoUrl") { type = NavType.StringType })) { backStackEntry ->
                     val videoUrl = backStackEntry.arguments?.getString("videoUrl") ?: ""
-                    FullScreenVideoPlayer(videoUrl = videoUrl, navController, context = LocalContext.current)
+                    FullScreenVideoPlayer(videoUrl, navController, LocalContext.current, bottomBarState)
                 }
                 composable("userPage/{userId}") { backStackEntry ->
                     val userId = backStackEntry.arguments?.getString("userId") ?: return@composable
@@ -109,44 +130,51 @@ fun MainScreen() {
 }
 
 @Composable
-fun AppBottomNavigation(navController: NavController) {
+fun AppBottomNavigation(navController: NavController, bottomBarState: MutableState<Boolean>) {
     val items = listOf(
         Screen.Home,
         Screen.CategoryList,
         Screen.Upload,
         Screen.Profile
     )
-    NavigationBar(
-        containerColor = MaterialTheme.colorScheme.surface,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        modifier = Modifier.height(80.dp)
-    ) {
-        val currentRoute = currentRoute(navController)
-        items.forEach { screen ->
-            val isSelected = currentRoute == screen.route
-            NavigationBarItem(
-                icon = {
-                    Icon(
-                        painter = painterResource(id = if (isSelected) screen.filledIcon else screen.unfilledIcon),
-                        contentDescription = null
+    AnimatedVisibility(
+        visible = bottomBarState.value,
+        enter = slideInVertically(initialOffsetY = { it }),
+        exit = slideOutVertically(targetOffsetY = { it }),
+        content = {
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.height(80.dp)
+            ) {
+                val currentRoute = currentRoute(navController)
+                items.forEach { screen ->
+                    val isSelected = currentRoute == screen.route
+                    NavigationBarItem(
+                        icon = {
+                            Icon(
+                                painter = painterResource(id = if (isSelected) screen.filledIcon else screen.unfilledIcon),
+                                contentDescription = null
+                            )
+                        },
+                        label = { Text(screen.title) },
+                        alwaysShowLabel = false,
+                        selected = isSelected,
+                        onClick = {
+                            navController.navigate(screen.route) {
+                                popUpTo(navController.graph.startDestinationId)
+                                launchSingleTop = true
+                            }
+                        },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedTextColor = MaterialTheme.colorScheme.onSecondary,
+                            indicatorColor = MaterialTheme.colorScheme.onError
+                        )
                     )
-                },
-                label = { Text(screen.title) },
-                alwaysShowLabel = false,
-                selected = isSelected,
-                onClick = {
-                    navController.navigate(screen.route) {
-                        popUpTo(navController.graph.startDestinationId)
-                        launchSingleTop = true
-                    }
-                },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedTextColor = MaterialTheme.colorScheme.onSecondary,
-                    indicatorColor = MaterialTheme.colorScheme.onError
-                )
-            )
+                }
+            }
         }
-    }
+    )
 }
 
 
@@ -154,5 +182,20 @@ fun AppBottomNavigation(navController: NavController) {
 fun currentRoute(navController: NavController): String? {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     return navBackStackEntry?.destination?.route
+}
+
+
+object NetworkUtil {
+
+    fun isConnectedToInternet(context: Context): Boolean {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = connectivityManager.activeNetwork ?: return false
+        val activeNetwork = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return when {
+            activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> true
+            activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> true
+            else -> false
+        }
+    }
 }
 

@@ -18,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,7 +33,12 @@ import androidx.navigation.NavController
 
 @OptIn(UnstableApi::class)
 @Composable
-fun FullScreenVideoPlayer(videoUrl: String, navController: NavController, context: Context) {
+fun FullScreenVideoPlayer(
+    videoUrl: String,
+    navController: NavController,
+    context: Context,
+    bottomBarState: MutableState<Boolean>
+) {
     val exoPlayer = remember {
         ExoPlayer.Builder(context).build().apply {
             setMediaItem(MediaItem.fromUri(videoUrl))
@@ -45,7 +51,7 @@ fun FullScreenVideoPlayer(videoUrl: String, navController: NavController, contex
             exoPlayer.release()
         }
     }
-    
+
     val window = (context as? Activity)?.window
     val insetsController = window?.insetsController
 
@@ -54,9 +60,11 @@ fun FullScreenVideoPlayer(videoUrl: String, navController: NavController, contex
             controller.hide(WindowInsets.Type.systemBars())
             controller.systemBarsBehavior = BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
+        bottomBarState.value = false
 
         onDispose {
             insetsController?.show(WindowInsets.Type.systemBars())
+            bottomBarState.value = true
         }
     }
 
@@ -90,3 +98,4 @@ fun FullScreenVideoPlayer(videoUrl: String, navController: NavController, contex
         exoPlayer.playWhenReady = true
     }
 }
+

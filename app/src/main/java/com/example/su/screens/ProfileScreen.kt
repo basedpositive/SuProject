@@ -1,5 +1,6 @@
 package com.example.su.screens
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -30,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -65,6 +67,18 @@ fun ProfileScreen(navController: NavController, auth: FirebaseAuth) {
     ) {
         if (user != null) {
             ProfileHeader(username = username, email = email, navController, userId = user.uid)
+            Spacer(modifier = Modifier.height(4.dp))
+            Canvas(modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)) {
+                drawLine(
+                    color = Color.Gray,
+                    start = Offset(0f, 0f),
+                    end = Offset(size.width, 0f),
+                    strokeWidth = 1f
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
             ProfileContent(navController = navController, auth = auth, db = db)
         } else {
             SignInButtons(navController = navController)
@@ -119,7 +133,7 @@ fun ProfileHeader(username: String, email: String, navController: NavController,
 
 @Composable
 fun ProfileContent(navController: NavController, auth: FirebaseAuth, db: FirebaseFirestore) {
-    var activeTab by remember { mutableStateOf("Подписки") }
+    var activeTab by remember { mutableStateOf("Понравившиеся") }
 
     Column {
         Row(
@@ -127,9 +141,9 @@ fun ProfileContent(navController: NavController, auth: FirebaseAuth, db: Firebas
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             TabButton(
-                text = "Подписки",
-                isActive = activeTab == "Подписки",
-                onClick = { activeTab = "Подписки" }
+                text = "Понравившиеся",
+                isActive = activeTab == "Понравившиеся",
+                onClick = { activeTab = "Понравившиеся" }
             )
             TabButton(
                 text = "Мои видео",
@@ -140,7 +154,7 @@ fun ProfileContent(navController: NavController, auth: FirebaseAuth, db: Firebas
 
         // Контент в зависимости от выбранной вкладки
         when (activeTab) {
-            "Подписки" -> LikedVideosView(navController, auth, db)
+            "Понравившиеся" -> LikedVideosView(navController, auth, db)
             "Мои видео" -> UserVideosView(navController, auth, db)
         }
     }
